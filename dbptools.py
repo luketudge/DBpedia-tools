@@ -125,6 +125,7 @@ def check_exists(func):
 
 # %% Example functions
 
+@check_exists
 def is_person(entity):
     """Ask whether a wikipedia entity is a person.
 
@@ -212,42 +213,3 @@ def is_dead(entity):
     result = submit_query(query_text)
 
     return result['boolean']
-
-
-# %% Demo
-
-if __name__ == '__main__':
-
-    examples = [
-        'Angela Merkel',
-        'Angela Murkle',
-        'Ronald Reagan',
-        'Nicki Minaj',
-        'Elvis Presley',
-        'Baked Alaska',
-        'Sherlock Holmes',
-    ]
-
-    for person in examples:
-
-        try:
-
-            if is_dead(person):
-                status = 'dead'
-            else:
-                status = 'living'
-
-            if is_politician(person):
-                profession = 'politician'
-            else:
-                profession = 'non-politician'
-
-            print(person, ':', status, profession)
-
-        except NotInDBPediaError:
-
-            print(person, ': not found')
-
-        except NotaPersonError:
-
-            print(person, ': not a person')
