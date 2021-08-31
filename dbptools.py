@@ -5,13 +5,9 @@ These rely on the SPARQLWrapper package:
 https://github.com/RDFLib/sparqlwrapper
 """
 
-import functools
-
 from SPARQLWrapper import SPARQLWrapper
 from SPARQLWrapper import JSON
 
-
-VERBOSE = False
 
 # One query session is re-used throughout the module.
 SPARQL = SPARQLWrapper('http://dbpedia.org/sparql')
@@ -26,6 +22,21 @@ PREFIX dbpedia: <http://dbpedia.org/resource/>
 PREFIX dbo: <http://dbpedia.org/ontology/>
 """
 
+# From: https://dbpedia.org/ontology/Person
+DEATH_PROPERTIES = [
+    'deathPlace',
+    'deathDate',
+    'deathCause',
+    'bodyDiscovered',
+    'placeOfBurial',
+    'deathYear',
+    'causeOfDeath',
+    'dateOfBurial',
+    'deadInFightDate',
+    'deadInFightPlace',
+    'deathAge',
+]
+
 
 # %% Exceptions
 
@@ -38,13 +49,13 @@ class DBPError(Exception):
 
 class NotInDBPediaError(DBPError):
     """Raised when attempting to query an entry that does not exist at:
-    http://dbpedia.org/resource/
+    http://dbpedia.org/resource
     """
 
     pass
 
 
-class NotaPersonError(DBPError):
+class NotAPersonError(DBPError):
     """Raised when attempting to query Person-specific properties of an entity that is not of class 'Person':
     http://dbpedia.org/ontology/Person
     """
@@ -68,17 +79,18 @@ def format_name(name):
     return name
 
 
-def submit_query(query_text):
+def submit_query(query_text, verbose=False):
     """Submit a SPARQL query to DBpedia.
 
     The prefixes for the dbpedia ontology are added.
-
+    
+    boolean argument verbose toggles printing query text
     returns JSON-format query result
     """
 
     query = QUERY_PREFIXES + query_text
 
-    if VERBOSE:
+    if verbose:
         print(query)
 
     SPARQL.setQuery(query)
@@ -86,130 +98,124 @@ def submit_query(query_text):
     return SPARQL.query().convert()
 
 
-def entry_exists(entity):
-    """Ask whether an entry exists in DBpedia.
+# %% Main class
 
-    Checks whether the entry is an instance of the base class 'Thing'.
-    Important, because queries on non-existent entities will otherwise just return False.
-
-    returns bool
+class DBPEntity():
+    """Class for querying information about an entity in DBPedia.
     """
+    
+    def __init__(self, name, verbose=False):
+        """name is the name of an entity to query
+        verbose is boolean passed on to submit_query()
+        """
+        
+        self.requested_name = name
+        self.verbose = verbose
+        
+        self.person = None
+        self.politician = None
+        self.dead = None
+        
+        # Check if requested entry is in DBpedia.
+        
+        formatted_name = format_name(self.requested_name)
+        
+        query_text = (
+            'ASK WHERE { dbpedia:' +
+             formatted_name +
+            ' a owl:Thing }'
+        )
+        result = submit_query(query_text, verbose=self.verbose)
+        
+        if result['boolean']:
+            
+            self.resolved_name = formatted_name
+        
+        # Otherwise check whether it redirects.
+        
+        else:
+            
+            query_text = (
+                'SELECT ?entity WHERE {dbpedia:' +
+                formatted_name +
+                ' dbo:wikiPageRedirects ?entity} LIMIT 1'
+            )
+            result = submit_query(query_text, verbose=self.verbose)
+            result = result['results']
+            
+            if result['bindings']:
+                uri = result['bindings'][0]['entity']['value']
+                self.resolved_name = uri.split('/')[-1]
+            else:
+                raise NotInDBPediaError(formatted_name, 'not in DBPedia.')
+    
+    def is_person(self):
+        """Ask whether entity is a person.
+        
+        returns bool
+        """
+        
+        if self.person is None:
+    
+            query_text = (
+                'ASK WHERE { dbpedia:' +
+                self.resolved_name +
+                ' a dbo:Person }'
+            )
+            result = submit_query(query_text)
+        
+            self.person = result['boolean']
+        
+        return self.person
 
-    query_text = (
-        'ASK WHERE { dbpedia:' +
-        format_name(entity) +
-        ' a owl:Thing }'
-    )
+    def is_politician(self):
+        """Ask whether a entity is a politician.
+        
+        'Politician' is a definition from the DBpedia ontology.
+        
+        raises NotaPersonError if entity is not of class 'Person'.
+        returns bool
+        """
+        
+        if not self.is_person():
+            raise NotAPersonError(self.resolved_name, 'not a person.')
 
-    result = submit_query(query_text)
+        if self.politician is None:
+            
+            query_text = (
+                'ASK WHERE { dbpedia:' +
+                self.resolved_name +
+                ' a dbo:Politician }'
+            )
+            result = submit_query(query_text)
+    
+            self.politician = result['boolean']
+        
+        return self.politician
 
-    return result['boolean']
-
-
-def check_exists(func):
-    """Decorator for functions whose first argument is a wikipedia entity.
-    Adds a check that the entity exists in DBPedia.
-
-    Raises NotInDBPediaError if not.
-    """
-
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        entity = format_name(args[0])
-        if not entry_exists(entity):
-            raise NotInDBPediaError("'" + entity + "' not in DBpedia.")
-        return func(*args, **kwargs)
-
-    return wrapper
-
-
-# %% Example functions
-
-@check_exists
-def is_person(entity):
-    """Ask whether a wikipedia entity is a person.
-
-    returns bool
-    """
-
-    query_text = (
-        'ASK WHERE { dbpedia:' +
-        format_name(entity) +
-        ' a dbo:Person }'
-    )
-
-    result = submit_query(query_text)
-
-    return result['boolean']
-
-
-@check_exists
-def is_politician(entity):
-    """Ask whether a wikipedia entity is a politician.
-
-    'Politician' is a definition from the DBpedia ontology.
-
-    raises NotaPersonError if entity is not of class 'Person'.
-
-    returns bool
-    """
-
-    entity = format_name(entity)
-
-    if not is_person(entity):
-        raise NotaPersonError("'" + entity + "' is not a person.")
-
-    query_text = (
-        'ASK WHERE { dbpedia:' +
-        entity +
-        ' a dbo:Politician }'
-    )
-
-    result = submit_query(query_text)
-
-    return result['boolean']
-
-
-# From: https://dbpedia.org/ontology/Person
-DEATH_PROPERTIES = [
-    'deathPlace',
-    'deathDate',
-    'deathCause',
-    'bodyDiscovered',
-    'placeOfBurial',
-    'deathYear',
-    'causeOfDeath',
-    'dateOfBurial',
-    'deadInFightDate',
-    'deadInFightPlace',
-    'deathAge',
-]
-
-
-@check_exists
-def is_dead(entity):
-    """Ask whether a wikipedia entity is dead.
-
-    This relies on checking whether any of various death-related properties is set.
-
-    raises NotaPersonError if entity exists but is not of class 'Person'.
-
-    returns bool
-    """
-
-    entity = format_name(entity)
-
-    if not is_person(entity):
-        raise NotaPersonError("'" + entity + "' is not a person.")
-
-    query_text = (
-        'ASK WHERE { dbpedia:' +
-        entity +
-        ' dbo:' +
-        '|dbo:'.join(DEATH_PROPERTIES) +
-        ' ?value }'
-    )
-
-    result = submit_query(query_text)
-
-    return result['boolean']
+    def is_dead(self):
+        """Ask whether entity is dead.
+        
+        This relies on checking whether any of various death-related properties is set.
+        
+        raises NotaPersonError if entity exists but is not of class 'Person'.
+        returns bool
+        """
+        
+        if not self.is_person():
+            raise NotAPersonError(self.resolved_name, 'not a person.')
+        
+        if self.dead is None:
+            
+            query_text = (
+                'ASK WHERE { dbpedia:' +
+                self.resolved_name +
+                ' ' +
+                '|'.join('dbo:' + x for x in DEATH_PROPERTIES) +
+                ' ?value }'
+            )
+            result = submit_query(query_text)
+    
+            self.dead = result['boolean']
+        
+        return self.dead
