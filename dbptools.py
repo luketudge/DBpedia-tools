@@ -162,7 +162,7 @@ class DBPEntity():
                 self.resolved_name +
                 ' a dbo:Person }'
             )
-            result = submit_query(query_text)
+            result = submit_query(query_text, verbose=self.verbose)
         
             self.person = result['boolean']
         
@@ -187,7 +187,7 @@ class DBPEntity():
                 self.resolved_name +
                 ' a dbo:Politician }'
             )
-            result = submit_query(query_text)
+            result = submit_query(query_text, verbose=self.verbose)
     
             self.politician = result['boolean']
         
@@ -214,7 +214,7 @@ class DBPEntity():
                 '|'.join('dbo:' + x for x in DEATH_PROPERTIES) +
                 ' ?value }'
             )
-            result = submit_query(query_text)
+            result = submit_query(query_text, verbose=self.verbose)
     
             self.dead = result['boolean']
         
