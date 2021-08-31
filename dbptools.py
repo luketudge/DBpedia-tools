@@ -173,7 +173,7 @@ class DBPEntity():
         
         'Politician' is a definition from the DBpedia ontology.
         
-        raises NotaPersonError if entity is not of class 'Person'.
+        raises NotAPersonError if entity is not of class 'Person'.
         returns bool
         """
         
@@ -198,7 +198,7 @@ class DBPEntity():
         
         This relies on checking whether any of various death-related properties is set.
         
-        raises NotaPersonError if entity exists but is not of class 'Person'.
+        raises NotAPersonError if entity exists but is not of class 'Person'.
         returns bool
         """
         
