@@ -147,7 +147,7 @@ class DBPEntity():
                 uri = result['bindings'][0]['entity']['value']
                 self.resolved_name = uri.split('/')[-1]
             else:
-                raise NotInDBPediaError(formatted_name, 'not in DBPedia.')
+                raise NotInDBPediaError(f'{formatted_name} is not in DBPedia')
     
     def is_person(self):
         """Ask whether entity is a person.
@@ -178,7 +178,7 @@ class DBPEntity():
         """
         
         if not self.is_person():
-            raise NotAPersonError(self.resolved_name, 'not a person.')
+            raise NotAPersonError(f'{self.resolved_name} is not a person')
 
         if self.politician is None:
             
@@ -203,7 +203,7 @@ class DBPEntity():
         """
         
         if not self.is_person():
-            raise NotAPersonError(self.resolved_name, 'not a person.')
+            raise NotAPersonError(f'{self.resolved_name} is not a person')
         
         if self.dead is None:
             
