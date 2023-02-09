@@ -11,6 +11,29 @@ NAMES = [
     ('Angela Merkel', 'Angela_Merkel'),
 ]
 
+NON_PERSON = 'haggis'
+
+IS_PERSON_NAMES = [
+    ('Angela Merkel', True),
+    ('Sherlock Holmes', False),
+    (NON_PERSON, False),
+]
+
+IS_POLITICIAN_NAMES = [
+    ('Angela Merkel', True),
+    ('Nicki Minaj', False),
+]
+
+IS_DEAD_NAMES = [
+    ('Angela Merkel', False),
+    ('Otto von Bismarck', True),
+]
+
+PERSON_METHODS = [
+    dbptools.DBPEntity.is_politician,
+    dbptools.DBPEntity.is_dead,
+]
+
 
 @pytest.mark.parametrize('raw, formatted', NAMES)
 def test_format_name(raw, formatted):
@@ -38,12 +61,6 @@ def test_not_exists():
         dbptools.DBPEntity('Nonexistent_person', verbose=VERBOSE)
 
 
-IS_PERSON_NAMES = [
-    ('Angela Merkel', True),
-    ('candiru', False),
-    ('Sherlock Holmes', False),
-]
-
 @pytest.mark.parametrize('name, answer', IS_PERSON_NAMES)
 def test_is_person(name, answer):
     
@@ -51,11 +68,6 @@ def test_is_person(name, answer):
     
     assert entity.is_person() == answer
 
-
-IS_POLITICIAN_NAMES = [
-    ('Angela Merkel', True),
-    ('Nicki Minaj', False),
-]
 
 @pytest.mark.parametrize('name, answer', IS_POLITICIAN_NAMES)
 def test_is_politician(name, answer):
@@ -65,11 +77,6 @@ def test_is_politician(name, answer):
     assert entity.is_politician() == answer
 
 
-IS_DEAD_NAMES = [
-    ('Angela Merkel', False),
-    ('Otto von Bismarck', True),
-]
-
 @pytest.mark.parametrize('name, answer', IS_DEAD_NAMES)
 def test_is_dead(name, answer):
     
@@ -78,14 +85,9 @@ def test_is_dead(name, answer):
     assert entity.is_dead() == answer
 
 
-PERSON_METHODS = [
-    dbptools.DBPEntity.is_politician,
-    dbptools.DBPEntity.is_dead,
-]
-
 @pytest.mark.parametrize('method', PERSON_METHODS)
 def test_not_person(method):
     
     with pytest.raises(dbptools.NotAPersonError):
-        entity = dbptools.DBPEntity('candiru', verbose=VERBOSE)
+        entity = dbptools.DBPEntity(NON_PERSON, verbose=VERBOSE)
         method(entity)
